@@ -1,0 +1,32 @@
+#!/bin/bash
+
+downname="Pythia.6.4.particles.codes.and.decays.txt"
+fnamefull="codes_full.dat"
+wget http://www.phenix.bnl.gov/WWW/publish/elke/EIC/Files-for-Wiki/$downname
+mv -v $downname $fnamefull
+
+
+grep -A`cat $fnamefull | wc -l` \
+  "parton data table" $fnamefull |\
+  awk '$1=$1' > $fnamefull.part
+
+> codes.dat
+
+let i=0
+
+while read line; do
+  let i++
+  if [ $i -le 3 ]; then
+    continue
+  fi
+  let wcount=`echo $line | wc -w`
+  if [ $wcount -gt 10 ]; then
+    echo $line >> codes.dat
+  fi
+done < $fnamefull.part
+
+rm $fnamefull.part
+
+cat codes.dat
+
+
