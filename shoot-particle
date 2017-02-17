@@ -1,0 +1,165 @@
+#!/bin/bash
+# generates single macro file; see usage ouput 
+# creates a macro file to be used in the simu program. Uses visualization options from a vis0.mac file(assumed to be in the same directory) and appends it with information on particle, energy, direction/momentum, number of events
+
+# default values
+particle="pi0"
+energy=10
+nevents=1
+xdir=-0.08
+ydir=0.08
+zdir=1
+iter=0
+usemomentum=0
+batchmode=0
+mode=0 
+#ADDED by BS, my way to indicate whether we run off the old way or new way (new way allows multiple particles in one event; 0=oldway, 1 = newway
+
+# print help
+verbose=0
+if [ $# -eq 0 ]; then
+  echo "Usage: $0 [-t particle type] [-e energy] [-n nevents] [-x xdir]" >&2
+  echo "       [-y ydir] [-z zdir] [-p use momentum] [-d defaults] [-b batch mode]" >&2
+  echo "[+] if -p flag is used, then momentum is specified by" >&2
+  echo "     p=(xdir,ydir,zdir) and energy is ignored; otherwise," >&2
+  echo "     gps direction is specified by (xdir,ydir,zdir)" >&2
+  echo "[+] batch mode is only used by shoot-multiple and only builds macros" >&2
+  if [ $verbose -eq 1 ]; then
+    echo "     1 for first" >&2
+    echo "     2 for middle" >&2
+    echo "     3 for last" >&2
+  fi
+  echo "[+] Default values are used unless specified (use -d to run defaults)"
+  echo "     Default Values:"
+  echo "      - particle type: $particle"
+  echo "      - energy: $energy"
+  echo "      - nevents: $nevents"
+  echo "      - xdir: $xdir"
+  echo "      - ydir: $ydir"
+  echo "      - zdir: $zdir"
+  exit 1
+fi
+
+
+# set flags
+while getopts ":t:e:n:x:y:z:i:m:b:pd" opt; do
+  case $opt in
+    t)
+      particle=$OPTARG
+      ;;
+    e)
+      energy=$OPTARG
+      ;;
+    n)
+      nevents=$OPTARG
+      ;;
+    x)
+      xdir=$OPTARG
+      ;;
+    y)
+      ydir=$OPTARG
+      ;;
+    z)
+      zdir=$OPTARG
+      ;;
+    i)
+      iter=$OPTARG
+      ;;
+    m)
+      mode=$OPTARG
+      ;;
+    b)
+      batchmode=$OPTARG
+      ;;
+    p)
+      usemomentum=1
+      ;;
+    d)
+      echo "using defaults"
+      ;;
+    :)
+      echo "Option -$OPTARG requires argument" >&2
+      exit 1
+      ;;
+    \?)
+      echo "Invalid option: -$OPTARG" >&2
+      exit 1
+      ;;
+  esac
+done
+
+
+# print particle info
+if [ $verbose -eq 1 ]; then
+  if [ $usemomentum -eq 1 ]; then
+    echo "sending $nevents ${particle}s with momentum ($xdir,$ydir,$zdir)"
+  else
+    echo "sending $nevents ${energy}GeV ${particle}s in direction ($xdir,$ydir)"
+  fi
+  sleep 1
+fi
+
+
+# set file names for macfile and output file
+if [ $iter -gt 0 ]; then
+  fname="_$iter"
+else
+  fname="_${particle}_${energy}GeV_${xdir}_${ydir}_${zdir}"
+fi
+
+if [ $mode -eq 1 ]; then
+  ofile="outroot/gFile_event${fname}"
+  ffile="outroot/fout_event${fname}"
+  macfile="outroot/macro_event${fname}.mac"
+else
+  ofile="outroot/gFile${fname}"
+  ffile="outroot/fout${fname}"
+  macfile="outroot/macro${fname}.mac"
+fi
+  
+
+
+# build macro
+if [ $batchmode -eq 0 -o $batchmode -eq 1 ]; then
+  cat vis0.mac > $macfile
+  echo "/gps/position 0 0 -700. cm" >> $macfile
+fi
+
+if [ $batchmode -ne 4 ]; then
+  echo "/gps/particle ${particle}" >> $macfile
+  if [ $usemomentum -eq 1 ]; then
+    echo "/gps/direction 0 0 1" >> $macfile
+    echo "/gps/momentum ${xdir} ${ydir} ${zdir}" >> $macfile
+  else
+    echo "/gps/direction ${xdir} ${ydir} ${zdir}" >> $macfile
+    echo "/gps/energy ${energy} GeV" >> $macfile
+  fi
+  if [ $mode -eq 0 ]; then 
+    echo "/run/beamOn ${nevents}" >> $macfile
+  fi
+fi
+
+if [ $batchmode -eq 0 -o $batchmode -eq 3 -o $batchmode -eq 4 ]; then
+  if [ $mode -ne 0 ]; then
+    echo "/run/beamOn" >> $macfile
+  fi
+  echo "exit" >> $macfile
+  echo "$macfile built"
+fi
+
+
+# run macro
+if [ $batchmode -eq 0 ]; then
+  $HOME/simulations/geant/bin/Linux-g++/simutesting $macfile $ofile
+  touch gFile.root
+  #rm gFile.root fout.root
+  #ln -s ${ofile}.root gFile.root
+  #ln -s ${ffile}.root fout.root
+
+#  if [ $iter -gt 0 ]; then
+    #root -b -q 'postsim.C('${iter}')'
+#  else
+#    root -b -q 'postsim.C('${iter}',"'${particle}'","'${energy}'","'${xdir}'","'${ydir}'","'${zdir}'")'
+#  fi
+  echo "simulation complete"
+fi
