@@ -1,0 +1,10 @@
+#!/bin/bash
+
+i=$1
+order=11
+gr="1.618"
+
+ofloat=$(echo "(${i}*${gr}*2^${order})%(2^${order})" | bc)
+oint=$(echo $ofloat/1 | bc)
+
+echo $oint

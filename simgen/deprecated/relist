@@ -1,0 +1,23 @@
+#!/bin/bash
+
+fname="unknown_particles"
+fext="txt"
+
+fnamefull=${fname}.${fext}
+fnamesort=${fname}_sorted.${fext}
+fnamelist=${fname}_list.${fext}
+
+sort $fnamefull > $fnamesort
+
+kf=`head -n1 $fnamesort`
+echo $kf > $fnamelist
+
+while read line; do
+  if [ $kf != $line ]; then
+    echo $line >> $fnamelist
+    kf=$line
+  fi
+done < $fnamesort
+
+rm $fnamefull
+rm $fnamesort
