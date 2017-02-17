@@ -1,0 +1,29 @@
+first, remove the old argfile, otherwise the new information
+will be appended to the old argfile
+
+to generate events and build an argfile (list of events headed toward FMS),
+run GenerateEvents.C (arguments specifiy # events and sqrt(s))
+
+now an argfile (table of particles and momenta to send to geant)
+will be created in outgen directory, together with events.root
+that contains some statistics on the generated events; what gets stored in the
+argfile is depenedent on the "argfile cut" in Analysis::BuildArgFile method
+ - this cut is currently set for specified final state particles aimed 
+   toward the FMS (2.5<eta<4.0)
+
+if for any reason you want to rebuild the argfile (e.g., to look at specific
+particles), run RebuildArgfile.C (takes events.root as input as well as
+sqrts (make sure this matches!). To modify what gets put into the argfile,
+change the "argfile cut" in Analysis::BuildArgFile and recompile
+
+you can run Analyse.C on events.root for further analysis of the generated
+event set
+
+now cd to geant4/fms and run MkMacros (default argument should be set to the
+default location of argfile - this script will generate macros in outroot, so 
+MAKE SURE YOU'RE NOT OVERWRITING SOMETHING IMPORTANT!
+(this script uses calls to shoot-particle in batch mode - there's probably a 
+better way to do this, but this way works ok)
+
+the new macro set will be in the current outroot directory, ready to be run with
+geant4 code!
