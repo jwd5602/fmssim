@@ -1,0 +1,12 @@
+#!/bin/bash
+
+tppmcLoc="${HOME}/builds/tppmc"
+
+touch tables
+rm tables
+touch libtppcmc.so
+rm libtppmc.so
+
+ln -s ${tppmcLoc}/tables .
+ln -s ${tppmcLoc}/build/.libs/libtppmc.so .
+
