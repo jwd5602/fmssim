@@ -115,19 +115,6 @@ EventLoop::~EventLoop()
 }
 
 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-void EventLoop::write_macro_info() {
-	
-// will be false first. executes later in pass_cuts() when info px,py, etc. is available
-      if (myfile.is_open()) {
-	myfile<<"/gps/source/add 1\n";
-	  myfile<<Form("/gps/particle %s\n",PName);
-	  myfile<<Form("/gps/energy %f GeV\n",E);
-	  myfile<<Form("/gps/direction %f %f %F\n",px,py,pz);
-	  myfile<<Form("/gps/position %f %f %f mm\n", vx, vy, vz-7000);
-      }
-}
-
-// +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 bool EventLoop::pass_cuts() { // checks to see if cuts have been passed successfully. 
 	
   bool passCuts = false;
@@ -169,8 +156,6 @@ bool EventLoop::pass_cuts() { // checks to see if cuts have been passed successf
       eta=-log(tan(.5*(acos(pz/pmag))));
      
       Double_t vmag=sqrt(pow(vx,2)+pow(vy,2)+pow(vz,2));
-	  
-      write_macro_info();
       
       if(eta<etamincuts || eta>etamaxcuts || (KS>10 && !(KF==443 && KS==11)) )
 	{
@@ -213,12 +198,35 @@ bool EventLoop::pass_cuts() { // checks to see if cuts have been passed successf
 	}
     }
 	
+  write_macro_info();
+	
   particles->Compress();
   
   std::cout<<"Number of passed events="<<evt_num<<std::endl;
 	
   return passCuts;
 	
+}
+
+// +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+void EventLoop::write_macro_info() {
+	
+// will be false first. executes later in pass_cuts() when info px,py, etc. is available
+      if(!JPsiAnalysis && pass_cuts())
+    {
+      evt_num++;
+      outstring=gSystem->Getenv("SIMHOME");
+      outstring+=Form("/geant/fmsu/macros/macro%d.mac", evt_num);
+      myfile.open(outstring);
+	
+	if (myfile.is_open()) {
+	myfile<<"/gps/source/add 1\n";
+	  myfile<<Form("/gps/particle %s\n",PName);
+	  myfile<<Form("/gps/energy %f GeV\n",E);
+	  myfile<<Form("/gps/direction %f %f %F\n",px,py,pz);
+	  myfile<<Form("/gps/position %f %f %f mm\n", vx, vy, vz-7000);
+          }
+      }
 }
 
 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
