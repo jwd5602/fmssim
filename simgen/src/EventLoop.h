@@ -22,7 +22,9 @@ class EventLoop : public TObject
     EventLoop(Int_t nEvents, Float_t sqrts);
     ~EventLoop();
     void Start();
-	void horse_ramp();
+	void make_macros();
+	bool pass_cuts();
+	void write_macro_info();
     TTree * GetEvents() { return events; };
     TClonesArray * GetParticles() { return particles; };
 
