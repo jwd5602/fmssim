@@ -115,6 +115,117 @@ EventLoop::~EventLoop()
 
 }
 
+bool EventLoop::pass_cuts() {
+	
+  bool passCuts = false;
+	
+  TFile * horse_glue = TFile::Open("~/simulations/geant/fmsu/simgen/outgen/events.root","READ");
+  TTree * fudd = (TTree*) horse_glue->Get("events");
+  TMCParticle parttmp;
+
+  int dummyEventNumber=1; 
+
+  fudd->GetBranch("event.fKF")->SetAddress(&KF_arr);
+  fudd->GetBranch("event.fVx")->SetAddress(&vx_arr);
+  fudd->GetBranch("event.fVy")->SetAddress(&vy_arr);
+  fudd->GetBranch("event.fVz")->SetAddress(&vz_arr);
+  fudd->GetBranch("event.fPx")->SetAddress(&px_arr);
+  fudd->GetBranch("event.fPy")->SetAddress(&py_arr);
+  fudd->GetBranch("event.fPz")->SetAddress(&pz_arr);
+  fudd->GetBranch("event.fEnergy")->SetAddress(&E_arr);
+  fudd->GetBranch("event.fMass")->SetAddress(&m_arr);
+
+  fudd->GetBranch("event.fKS")->SetAddress(&KS_arr);
+  Bool_t keep=0;
+  KLineFirst=0;
+
+  for (Int_t j = 0; j < fudd->GetEntries(); j++)
+    {
+      fudd->GetEntry(j);
+      px=px_arr[j];
+      py=py_arr[j];
+      pz=pz_arr[j];
+      E=E_arr[j];
+      m=m_arr[j];
+      vx=vx_arr[j];
+      vy=vx_arr[j];
+      vz=vx_arr[j];
+      KS=KS_arr[j];
+      KF=KF_arr[j];
+      
+      pt=sqrt(pow(px,2)+pow(py,2));
+      pmag=sqrt(pow(px,2)+pow(py,2)+pow(pz,2));
+      eta=-log(tan(.5*(acos(pz/pmag))));
+     
+      Double_t vmag=sqrt(pow(vx,2)+pow(vy,2)+pow(vz,2));
+      
+      if(eta<etamincuts || eta>etamaxcuts || (KS>10 && !(KF==443 && KS==11)) )
+	{
+	  particles->RemoveAt(j); 
+	  passCuts = true;
+	  continue;
+	}
+      else if(!JPsiAnalysis)
+	{
+
+	  if(JustTriggeredPi0 && !(KF==111 && E>Emincuts && E<Emaxcuts && pt>ptmincuts && pt<ptmaxcuts ) )
+	    {
+	      passCuts = true;
+	      continue;
+	    }
+	  else if(JustTriggeredOther && !(KF==211 && E>Emincuts && E<Emaxcuts && pt>ptmincuts && pt<ptmaxcuts ) ) 
+	  {  
+              passCuts = true;
+	      continue;
+	  }
+	  
+	  else 
+	    {
+	      parttmp.SetKF(KF);
+	      strcpy(PName,parttmp.GetName());
+	      if(strcmp(PName,"n0") == 0) {strcpy(PName,"neutron");} 
+	      else if(strcmp(PName,"nbar0") == 0) {strcpy(PName,"anti_neutron");} 
+	      else if(strcmp(PName,"K+") == 0) {strcpy(PName,"kaon+");}
+	      else if(strcmp(PName,"K-") == 0) {strcpy(PName,"kaon-");}
+	      else if(strcmp(PName,"K_L0") == 0) {strcpy(PName,"kaon+");}
+	      else if(strcmp(PName,"p+") == 0) {strcpy(PName,"proton");} 
+	      else if(strcmp(PName,"pbar-") == 0) {strcpy(PName,"anti_proton");}
+	      else if(strcmp(PName,"pi0") == 0 || strcmp(PName,"pi-") ==0 || strcmp(PName, "pi+") == 0 || strcmp(PName, "gamma") == 0 ) {} // These names are already the same as geant's
+	      else
+		{
+		  printf("Particle with name %s skipped. \n",PName);
+		  continue;
+		};
+	    }
+	}
+    }
+	
+  particles->Compress();
+  
+  std::cout<<"Number of passed events="<<evt_num<<std::endl;
+	
+  return passCuts;
+	
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 void EventLoop::horse_ramp() {
 
