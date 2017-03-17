@@ -112,18 +112,29 @@ EventLoop::~EventLoop()
   //
   if(pythia) delete pythia;
   if(events) delete events;
-
 }
 
-bool EventLoop::pass_cuts() {
+// +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+void EventLoop::write_macro_info() {
+	
+// will be false first. executes later in pass_cuts() when info px,py, etc. is available
+      if (myfile.is_open()) {
+	myfile<<"/gps/source/add 1\n";
+	  myfile<<Form("/gps/particle %s\n",PName);
+	  myfile<<Form("/gps/energy %f GeV\n",E);
+	  myfile<<Form("/gps/direction %f %f %F\n",px,py,pz);
+	  myfile<<Form("/gps/position %f %f %f mm\n", vx, vy, vz-7000);
+      }
+}
+
+// +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+bool EventLoop::pass_cuts() { // checks to see if cuts have been passed successfully. 
 	
   bool passCuts = false;
 	
   TFile * horse_glue = TFile::Open("~/simulations/geant/fmsu/simgen/outgen/events.root","READ");
   TTree * fudd = (TTree*) horse_glue->Get("events");
   TMCParticle parttmp;
-
-  int dummyEventNumber=1; 
 
   fudd->GetBranch("event.fKF")->SetAddress(&KF_arr);
   fudd->GetBranch("event.fVx")->SetAddress(&vx_arr);
@@ -158,6 +169,8 @@ bool EventLoop::pass_cuts() {
       eta=-log(tan(.5*(acos(pz/pmag))));
      
       Double_t vmag=sqrt(pow(vx,2)+pow(vy,2)+pow(vz,2));
+	  
+      write_macro_info();
       
       if(eta<etamincuts || eta>etamaxcuts || (KS>10 && !(KF==443 && KS==11)) )
 	{
@@ -208,160 +221,38 @@ bool EventLoop::pass_cuts() {
 	
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-void EventLoop::horse_ramp() {
+void EventLoop::make_macros() { // makes and writes macros
 
   TFile * horse_glue = TFile::Open("~/simulations/geant/fmsu/simgen/outgen/events.root","READ");
   TTree * fudd = (TTree*) horse_glue->Get("events");
   TMCParticle parttmp;
 
   int dummyEventNumber=1; //for use in the naming of macro files. iterates when match to conditions is found
-
-  fudd->GetBranch("event.fKF")->SetAddress(&KF_arr); // make these arrays
-  fudd->GetBranch("event.fVx")->SetAddress(&vx_arr);
-  fudd->GetBranch("event.fVy")->SetAddress(&vy_arr);
-  fudd->GetBranch("event.fVz")->SetAddress(&vz_arr);
-  fudd->GetBranch("event.fPx")->SetAddress(&px_arr);
-  fudd->GetBranch("event.fPy")->SetAddress(&py_arr);
-  fudd->GetBranch("event.fPz")->SetAddress(&pz_arr);
-  fudd->GetBranch("event.fEnergy")->SetAddress(&E_arr);
-  fudd->GetBranch("event.fMass")->SetAddress(&m_arr);
-
-  //fudd->GetBranch("event.fEta")->SetAddress(&eta_arr);
-  //fudd->GetBranch("event.fPmag")->SetAddress(&pmag_arr);
-  //fudd->GetBranch("event.fPt")->SetAddress(&pt_arr);
-  fudd->GetBranch("event.fKS")->SetAddress(&KS_arr);
-  //fudd->GetBranch("event.fKLineFirst")->SetAddress(&KLineFirst_arr);
-  Bool_t keep=0;
-  KLineFirst=0;
   
-  if(!JPsiAnalysis)
+  if(!JPsiAnalysis && pass_cuts())
     {
-      
       evt_num++;
       outstring=gSystem->Getenv("SIMHOME");
-      outstring+=Form("/geant/fmsu/macros/macro%d.mac",evt_num);
+      outstring+=Form("/geant/fmsu/macros/macro%d.mac", evt_num);
       myfile.open(outstring);
+	  
       if (myfile.is_open())
 	{
 	  myfile<<"/gps/source/multiplevertex true\n";
 	  myfile<<"/gps/source/clear\n";
-	}
-    }
-
-  for (Int_t j = 0; j < fudd->GetEntries(); j++)
-    {
-      fudd->GetEntry(j);
-      px=px_arr[j];
-      py=py_arr[j];
-      pz=pz_arr[j];
-      E=E_arr[j];
-      m=m_arr[j];
-      vx=vx_arr[j];
-      vy=vx_arr[j];
-      vz=vx_arr[j];
-      KS=KS_arr[j];
-      KF=KF_arr[j];
-      
-      pt=sqrt(pow(px,2)+pow(py,2));
-      pmag=sqrt(pow(px,2)+pow(py,2)+pow(pz,2));
-      eta=-log(tan(.5*(acos(pz/pmag))));
-      
-      //	if(j==pythia->GetNumberOfParticles()-1) std::cout<<"j last term E="<<E<<" and KF:KS="<<KF<<":"<<KS<<" and m="<<m<<std::endl;
-      
-      Double_t vmag=sqrt(pow(vx,2)+pow(vy,2)+pow(vz,2));
-      
-      if(eta<etamincuts || eta>etamaxcuts || (KS>10 && !(KF==443 && KS==11)) )
-	{
-	  particles->RemoveAt(j); //Remove Particles from list that are not in the range of the fms or are not final state particles (except for JPsi at time of decay)
-	  continue;
-	}
-      else if(!JPsiAnalysis)
-	{
-	  
-
-
-
-
-
-
-	  if(JustTriggeredPi0 && !(KF==111 && E>Emincuts && E<Emaxcuts && pt>ptmincuts && pt<ptmaxcuts ) )
-	    {
-	      continue;
-	    }
-	  else if(JustTriggeredOther && !(KF==211 && E>Emincuts && E<Emaxcuts && pt>ptmincuts && pt<ptmaxcuts ) ){continue;}
-	  
-	  else 
-	    {
-	      parttmp.SetKF(KF);
-	      strcpy(PName,parttmp.GetName());
-	      if(strcmp(PName,"n0") == 0) {strcpy(PName,"neutron");} //geant calls nuetron "nuetron" while pythia calls it "n0"
-	      else if(strcmp(PName,"nbar0") == 0) {strcpy(PName,"anti_neutron");} 
-	      else if(strcmp(PName,"K+") == 0) {strcpy(PName,"kaon+");}
-	      else if(strcmp(PName,"K-") == 0) {strcpy(PName,"kaon-");}
-	      else if(strcmp(PName,"K_L0") == 0) {strcpy(PName,"kaon+");}
-	      else if(strcmp(PName,"p+") == 0) {strcpy(PName,"proton");} 
-	      else if(strcmp(PName,"pbar-") == 0) {strcpy(PName,"anti_proton");}
-	      else if(strcmp(PName,"pi0") == 0 || strcmp(PName,"pi-") ==0 || strcmp(PName, "pi+") == 0 || strcmp(PName, "gamma") == 0 ) {} // These names are already the same as geant's
-	      else
-		{
-		  printf("Particle with name %s skipped. \n",PName);
-		  continue;
-		};
-	      
-	      //BS, may need to account for time differences here later. Note that PYTHIA distances are mm by default;
-	      
-	      if(myfile.is_open())
-		{
-		  myfile<<"/gps/source/add 1\n";
-		  myfile<<Form("/gps/particle %s\n",PName);
-		  myfile<<Form("/gps/energy %f GeV\n",E);
-		  myfile<<Form("/gps/direction %f %f %F\n",px,py,pz);
-		  myfile<<Form("/gps/position %f %f %f mm\n", vx, vy, vz-7000);
-		}
-	    }
-	}
-    }
-  if(!JPsiAnalysis)
-    {
-      if(myfile.is_open())
-	{
+	       
 	  myfile<<"/run/beamOn 1\n";
 	  myfile<<"exit";
 	}
-      myfile.close();
+	myfile.close();
     }
   
-  particles->Compress();
-  // if(particles->GetEntriesFast()!=0)events->Fill();
-  
-  
-  std::cout<<"Number of passed events="<<evt_num<<std::endl;
   return;
   
 }
 
-
 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
 void EventLoop::Start()
 {
   TMCParticle parttmp;
